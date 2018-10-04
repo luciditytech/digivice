@@ -33,10 +33,11 @@ contract VerifierRegistry is Ownable {
 
   address[] public addresses;
   address public tokenAddress;
-  uint256 public verifiersPerShard = 3;
+  uint256 public verifiersPerShard;
 
-  function VerifierRegistry(address _tokenAddress) {
+  function VerifierRegistry(address _tokenAddress, uint256 _verifiersPerShard) {
     tokenAddress = _tokenAddress;
+    verifiersPerShard = _verifiersPerShard;
   }
 
   function create(string _location) public {

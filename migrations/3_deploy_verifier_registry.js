@@ -31,6 +31,7 @@ module.exports = (deployer, network, accounts) => {
   deployer.deploy(
     VerifierRegistry,
     tokenAddress,
+    config.VerifierRegistry.verifiersPerShard,
     options
   );
 };
