@@ -10,7 +10,7 @@ contract('VerifierRegistry', (accounts) => {
     let eventLog;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123');
+      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
       await verifierRegistryContract.create('127.0.0.1')
         .then((response) => {
@@ -70,7 +70,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123');
+      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
       await verifierRegistryContract.create('127.0.0.1');
     });
@@ -89,7 +89,7 @@ contract('VerifierRegistry', (accounts) => {
       beforeEach(async () => {
         cost = new BN('1000', 10);
 
-        verifierRegistryContract = await VerifierRegistry.new('0x123');
+        verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
         humanStandardToken = await HumanStandardToken.deployed();
 
@@ -118,7 +118,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123');
+      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
     });
 
     it('should update verifier location', async () => {
@@ -196,7 +196,7 @@ contract('VerifierRegistry', (accounts) => {
         cost = new BN('1000', 10);
         withdraw = new BN('50', 10);
 
-        verifierRegistryContract = await VerifierRegistry.new('0x123');
+        verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
         humanStandardToken = await HumanStandardToken.deployed();
 
@@ -233,7 +233,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123');
+      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
       await verifierRegistryContract.create('127.0.0.1');
     });
@@ -251,7 +251,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123');
+      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
     });
 
     it('should change number of verifiers per shard', async () => {
