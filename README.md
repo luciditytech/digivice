@@ -50,8 +50,9 @@ A collection of smart contracts for various types of on-chain registries.
 ## Testing smart contracts
 
 > Be sure compiled contracts are latest before testing
-1. `truffle test`
-1. With code coverage: `npm test`
+1. `npm run lint`
+1. `npm run test`
+1. With code coverage: `npm run coverage`
 
 ---
 

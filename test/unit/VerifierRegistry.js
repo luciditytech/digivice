@@ -2,7 +2,6 @@ const BN = require('bn.js');
 
 const HumanStandardToken = artifacts.require('token-sale-contracts/contracts/HumanStandardToken.sol');
 const VerifierRegistry = artifacts.require('VerifierRegistry');
-const Token = artifacts.require('token-sale-contracts/contracts/Token.sol');
 
 contract('VerifierRegistry', (accounts) => {
   describe('#create()', () => {
@@ -30,6 +29,16 @@ contract('VerifierRegistry', (accounts) => {
       const shard = verifier[4].toNumber();
 
       assert.equal(shard, 0);
+    });
+
+    it('should have expected balance per shard', async () => {
+      const address = await verifierRegistryContract.addresses.call(0);
+      const verifier = await verifierRegistryContract.verifiers.call(address);
+
+      const balance =
+        await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
+
+      assert.equal(balance.toString(), '0');
     });
 
     it('should require verifier to not be already created', async () => {
@@ -110,6 +119,14 @@ contract('VerifierRegistry', (accounts) => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
 
         assert.equal(verifier[3], cost.toNumber());
+      });
+
+      it('should have valid total balance per shard', async () => {
+        const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
+        const balance =
+          await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
+
+        assert.equal(balance.toString(), cost.toString());
       });
     });
   });
@@ -225,6 +242,14 @@ contract('VerifierRegistry', (accounts) => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
 
         assert.equal(verifier[3], balance.toNumber());
+      });
+
+      it('should have valid total balance per shard after withdraw', async () => {
+        const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
+        const balance =
+          await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
+
+        assert.equal(balance.toString(), (cost - withdraw).toString());
       });
     });
   });
