@@ -1,8 +1,8 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.24;
 
-import 'zeppelin-solidity/contracts/ownership/Ownable.sol';
-import 'token-sale-contracts/contracts/Token.sol';
-import 'token-sale-contracts/contracts/HumanStandardToken.sol';
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "token-sale-contracts/contracts/Token.sol";
+import "token-sale-contracts/contracts/HumanStandardToken.sol";
 
 contract VerifierRegistry is Ownable {
   event LogVerifierRegistered(
@@ -21,6 +21,8 @@ contract VerifierRegistry is Ownable {
     uint256 shard
   );
 
+  event LogBalancePerShard(uint256 shard, uint256 balance);
+
   struct Verifier {
     address id;
     string location;
@@ -31,18 +33,23 @@ contract VerifierRegistry is Ownable {
 
   mapping(address => Verifier) public verifiers;
 
+  /// @dev shard => balance
+  mapping(uint256 => uint256) public balancesPerShard;
+
   address[] public addresses;
   address public tokenAddress;
-  uint256 public verifiersPerShard = 3;
+  uint256 public verifiersPerShard;
 
-  function VerifierRegistry(address _tokenAddress) {
+  constructor(address _tokenAddress, uint256 _verifiersPerShard)
+  public {
     tokenAddress = _tokenAddress;
+    verifiersPerShard = _verifiersPerShard;
   }
 
   function create(string _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(!verifier.created);
+    require(!verifier.created, "verifier already exists");
 
     verifier.id = msg.sender;
     verifier.location = _location;
@@ -51,7 +58,7 @@ contract VerifierRegistry is Ownable {
 
     addresses.push(verifier.id);
 
-    LogVerifierRegistered(
+    emit LogVerifierRegistered(
       verifier.id,
       verifier.location,
       verifier.created,
@@ -69,11 +76,17 @@ contract VerifierRegistry is Ownable {
 
     uint256 allowance = token.allowance(_from, this);
 
-    require(allowance > 0);
+    require(allowance > 0, "nothing to approve");
 
-    require(token.transferFrom(_from, this, allowance));
+    require(token.transferFrom(_from, this, allowance), "transferFrom failed");
 
     verifiers[_from].balance += allowance;
+
+    uint256 shard = verifiers[_from].shard;
+    uint256 shardBalance = balancesPerShard[shard] + allowance;
+    balancesPerShard[shard] = shardBalance;
+
+    emit LogBalancePerShard(shard, shardBalance);
 
     return true;
   }
@@ -81,11 +94,11 @@ contract VerifierRegistry is Ownable {
   function update(string _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(verifier.created);
+    require(verifier.created, "verifier do not exists");
 
     verifier.location = _location;
 
-    LogVerifierUpdated(
+    emit LogVerifierUpdated(
       verifier.id,
       verifier.location,
       verifier.created,
@@ -94,28 +107,34 @@ contract VerifierRegistry is Ownable {
     );
   }
 
-  function withdraw(uint256 _value) public returns (bool success) {
+  function withdraw(uint256 _value) public returns (bool) {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(_value > 0 && verifier.balance >= _value);
+    require(_value > 0 && verifier.balance >= _value, "nothing to withdraw");
 
     verifier.balance -= _value;
 
+    uint256 shard = verifier.shard;
+    uint256 shardBalance = balancesPerShard[shard] - _value;
+    balancesPerShard[shard] = shardBalance;
+
+    emit LogBalancePerShard(shard, shardBalance);
+
     Token token = Token(tokenAddress);
 
-    require(token.transfer(msg.sender, _value));
+    require(token.transfer(msg.sender, _value), "transfer failed");
 
     return true;
   }
 
   function updateTokenAddress(address _newTokenAddress) public onlyOwner {
-    require(_newTokenAddress != address(0));
+    require(_newTokenAddress != address(0), "empty token address");
 
     tokenAddress = _newTokenAddress;
   }
 
   function updateVerifiersPerShard(uint256 _newVerifiersPerShard) public onlyOwner {
-    require(_newVerifiersPerShard > 0);
+    require(_newVerifiersPerShard > 0, "_newVerifiersPerShard is empty");
 
     verifiersPerShard = _newVerifiersPerShard;
   }
