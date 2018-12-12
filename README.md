@@ -58,3 +58,8 @@ A collection of smart contracts for various types of on-chain registries.
 
 ## Linting smart contracts
 1. `solhint "contracts/**/*.sol"`
+
+## Contract addresses
+
+* development: [0xdd2cd445c4b0d38addd83c2606b2fbb2a3210d2c](https://ropsten.etherscan.io/address/0x00c5ce08a2e99d007b5d966bea21e3644e4a6b17#readContract)
+* production: [0x6a0da963533662c2ed687e67237681f765306ec9](https://ropsten.etherscan.io/address/0x6a0da963533662c2ed687e67237681f765306ec9#readContract)
