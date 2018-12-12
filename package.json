@@ -1,6 +1,6 @@
 {
   "name": "digivice",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "On-Chain Registries",
   "main": "truffle.js",
   "directories": {
@@ -35,6 +35,7 @@
     "jssha": "^2.3.1",
     "ministro-tool": "^0.1.2",
     "token-sale-contracts": "git@github.com:luciditytech/token-sale-contracts.git#develop",
+    "truffle-flattener": "^1.2.10",
     "truffle-hdwallet-provider": "0.0.6",
     "zeppelin-solidity": "^1.12.0"
   },
