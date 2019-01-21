@@ -3,6 +3,16 @@ const BN = require('bn.js');
 const HumanStandardToken = artifacts.require('token-sale-contracts/contracts/HumanStandardToken.sol');
 const VerifierRegistry = artifacts.require('VerifierRegistry');
 
+function formatVerifier(verifier) {
+  return {
+    id: verifier[0],
+    location: verifier[1],
+    active: verifier[2],
+    balance: verifier[3],
+    shard: verifier[4],
+  };
+}
+
 contract('VerifierRegistry', (accounts) => {
   describe('#create()', () => {
     let verifierRegistryContract;
@@ -61,8 +71,8 @@ contract('VerifierRegistry', (accounts) => {
         assert.equal(eventLog.args.location, '127.0.0.1');
       });
 
-      it('should emit create event with verifier created', () => {
-        assert.equal(eventLog.args.created, true);
+      it('should emit create event with verifier active', () => {
+        assert.equal(eventLog.args.active, true);
       });
 
       it('should emit create event with verifier balance', () => {
@@ -188,8 +198,8 @@ contract('VerifierRegistry', (accounts) => {
         assert.equal(eventLog.args.location, '1.1.1.1');
       });
 
-      it('should emit update event with verifier created', () => {
-        assert.equal(eventLog.args.created, true);
+      it('should emit update event with verifier active', () => {
+        assert.equal(eventLog.args.active, true);
       });
 
       it('should emit update event with verifier balance', () => {
@@ -199,6 +209,51 @@ contract('VerifierRegistry', (accounts) => {
       it('should emit update event with verifier shard', () => {
         assert.equal(eventLog.args.shard.toNumber(), 0);
       });
+    });
+  });
+
+  describe('#updateActiveStatus()', () => {
+    let verifierRegistryContract;
+
+    before(async () => {
+      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+    });
+
+    it('should be active after creation', async () => {
+      await verifierRegistryContract.create('127.0.0.1');
+      const verifier = formatVerifier(await verifierRegistryContract.verifiers(accounts[0]));
+
+      assert.isTrue(verifier.active);
+    });
+
+    it('should be able to disable verifier by contract owner', async () => {
+      await verifierRegistryContract.updateActiveStatus(accounts[0], false);
+      const verifier = formatVerifier(await verifierRegistryContract.verifiers(accounts[0]));
+
+      assert.isTrue(!verifier.active);
+    });
+
+    it('should NOT be able to update active state by not a contract owner', async () => {
+      const prevVerifier = formatVerifier(await verifierRegistryContract.verifiers(accounts[0]));
+      try {
+        await verifierRegistryContract.updateActiveStatus(
+          accounts[0],
+          !prevVerifier.active,
+          { from: accounts[1] },
+        );
+        assert(false, 'should throw');
+      } catch (e) {
+        // OK
+      }
+      const verifier = formatVerifier(await verifierRegistryContract.verifiers(accounts[0]));
+      assert.isTrue(prevVerifier.active === verifier.active);
+    });
+
+    it('should be able to active back verifier by contract owner', async () => {
+      await verifierRegistryContract.updateActiveStatus(accounts[0], true);
+      const verifier = formatVerifier(await verifierRegistryContract.verifiers(accounts[0]));
+
+      assert.isTrue(verifier.active);
     });
   });
 

@@ -8,7 +8,7 @@ contract VerifierRegistry is Ownable {
   event LogVerifierRegistered(
     address id,
     string location,
-    bool created,
+    bool active,
     uint256 balance,
     uint256 shard
   );
@@ -16,17 +16,19 @@ contract VerifierRegistry is Ownable {
   event LogVerifierUpdated(
     address id,
     string location,
-    bool created,
+    bool active,
     uint256 balance,
     uint256 shard
   );
 
   event LogBalancePerShard(uint256 shard, uint256 balance);
 
+  event LogUpdateActiveStatus(address executor, address verifier, bool active);
+
   struct Verifier {
     address id;
     string location;
-    bool created;
+    bool active;
     uint256 balance;
     uint256 shard;
   }
@@ -49,11 +51,11 @@ contract VerifierRegistry is Ownable {
   function create(string _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(!verifier.created, "verifier already exists");
+    require(verifier.id == address(0), "verifier already exists");
 
     verifier.id = msg.sender;
     verifier.location = _location;
-    verifier.created = true;
+    verifier.active = true;
     verifier.shard = uint256(addresses.length) / verifiersPerShard;
 
     addresses.push(verifier.id);
@@ -61,7 +63,7 @@ contract VerifierRegistry is Ownable {
     emit LogVerifierRegistered(
       verifier.id,
       verifier.location,
-      verifier.created,
+      verifier.active,
       verifier.balance,
       verifier.shard
     );
@@ -94,14 +96,14 @@ contract VerifierRegistry is Ownable {
   function update(string _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(verifier.created, "verifier do not exists");
+    require(verifier.id != address(0), "verifier do not exists");
 
     verifier.location = _location;
 
     emit LogVerifierUpdated(
       verifier.id,
       verifier.location,
-      verifier.created,
+      verifier.active,
       verifier.balance,
       verifier.shard
     );
@@ -138,4 +140,15 @@ contract VerifierRegistry is Ownable {
 
     verifiersPerShard = _newVerifiersPerShard;
   }
+
+  function updateActiveStatus(address _verifierAddress, bool _active) public onlyOwner {
+    Verifier storage verifier = verifiers[_verifierAddress];
+    require(verifier.id != address(0), "verifier do not exists");
+    require(verifier.active != _active, "no changes to active flag");
+
+    verifier.active = _active;
+
+    emit LogUpdateActiveStatus(msg.sender, _verifierAddress, _active);
+  }
+
 }
