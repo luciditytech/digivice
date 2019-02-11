@@ -1,3 +1,9 @@
+var chai = require("chai");
+var chaiAsPromised = require("chai-as-promised");
+chai.use(chaiAsPromised);
+
+var assert = chai.assert;
+
 const BN = require('bn.js');
 
 const HumanStandardToken = artifacts.require('token-sale-contracts/contracts/HumanStandardToken.sol');
@@ -6,10 +12,11 @@ const VerifierRegistry = artifacts.require('VerifierRegistry');
 function formatVerifier(verifier) {
   return {
     id: verifier[0],
-    location: verifier[1],
-    active: verifier[2],
-    balance: verifier[3],
-    shard: verifier[4],
+    name: verifier[1],
+    location: verifier[2],
+    active: verifier[3],
+    balance: verifier[4],
+    shard: verifier[5],
   };
 }
 
@@ -21,7 +28,7 @@ contract('VerifierRegistry', (accounts) => {
     beforeEach(async () => {
       verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
-      await verifierRegistryContract.create('127.0.0.1')
+      await verifierRegistryContract.create('paul', '127.0.0.1')
         .then((response) => {
           [eventLog] = response.logs;
         });
@@ -52,10 +59,13 @@ contract('VerifierRegistry', (accounts) => {
     });
 
     it('should require verifier to not be already created', async () => {
-      await verifierRegistryContract.create('127.0.0.1')
-        .catch((error) => {
-          assert.isDefined(error);
-        });
+        await assert.isRejected(verifierRegistryContract.create('mike', '127.0.0.1'))
+    });
+
+    it('should provide some unique name', async () => {
+      await assert.isRejected(verifierRegistryContract.create('paul', '127.0.0.2', {
+        from: accounts[1]
+      }))
     });
 
     it('should emit event when verifier has registered', () => {
@@ -65,6 +75,10 @@ contract('VerifierRegistry', (accounts) => {
     describe('after creating a verifier', () => {
       it('should emit create event with verifier id', () => {
         assert.equal(eventLog.args.id, accounts[0]);
+      });
+
+      it('should emit create event with verifier location', () => {
+        assert.equal(eventLog.args.name, 'paul');
       });
 
       it('should emit create event with verifier location', () => {
@@ -91,7 +105,7 @@ contract('VerifierRegistry', (accounts) => {
     beforeEach(async () => {
       verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
-      await verifierRegistryContract.create('127.0.0.1');
+      await verifierRegistryContract.create('mike', '127.0.0.1');
     });
 
     it('should return number of verifiers', async () => {
@@ -120,7 +134,7 @@ contract('VerifierRegistry', (accounts) => {
           from: accounts[0],
         });
 
-        await verifierRegistryContract.create('127.0.0.1');
+        await verifierRegistryContract.create('mike', '127.0.0.1');
 
         await verifierRegistryContract.receiveApproval(accounts[0], 0, '0x123', '');
       });
@@ -128,13 +142,13 @@ contract('VerifierRegistry', (accounts) => {
       it('should deposit tokens to stake', async () => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
 
-        assert.equal(verifier[3], cost.toNumber());
+        assert.equal(verifier[4], cost.toNumber());
       });
 
       it('should have valid total balance per shard', async () => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
         const balance =
-          await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
+          await verifierRegistryContract.balancesPerShard.call(verifier[5].toString());
 
         assert.equal(balance.toString(), cost.toString());
       });
@@ -149,28 +163,40 @@ contract('VerifierRegistry', (accounts) => {
     });
 
     it('should update verifier location', async () => {
-      await verifierRegistryContract.create('127.0.0.1');
+      await verifierRegistryContract.create('mike', '127.0.0.1');
 
-      await verifierRegistryContract.update('1.1.1.1');
+      await verifierRegistryContract.update('mike', '1.1.1.1');
 
       const verifier = await verifierRegistryContract.verifiers(accounts[0]);
 
-      assert.equal(verifier[1], '1.1.1.1');
+      assert.equal(verifier[2], '1.1.1.1');
     });
 
     it('should require verifier to be created already', async () => {
-      await verifierRegistryContract.update('1.2.3.4')
+      await verifierRegistryContract.update('mike', '1.2.3.4')
         .catch((error) => {
           assert.isDefined(error);
         });
     });
 
+    it('should update with some unique name', async () => {
+      await verifierRegistryContract.create('mike', '127.0.0.1');
+
+      await verifierRegistryContract.create('paul', '127.0.0.1', {
+        from: accounts[1]
+      });
+
+      await assert.isRejected(verifierRegistryContract.update('Mike', '127.0.0.1', {
+          from: accounts[1]
+        }))
+    });
+
     it('should emit event when verifier has been updated', async () => {
       let eventLog;
 
-      await verifierRegistryContract.create('127.0.0.1');
+      await verifierRegistryContract.create('mike', '127.0.0.1');
 
-      await verifierRegistryContract.update('1.1.1.1')
+      await verifierRegistryContract.update('mike', '1.1.1.1')
         .then((response) => {
           [eventLog] = response.logs;
         });
@@ -182,9 +208,9 @@ contract('VerifierRegistry', (accounts) => {
       let eventLog;
 
       beforeEach(async () => {
-        await verifierRegistryContract.create('127.0.0.1');
+        await verifierRegistryContract.create('mike', '127.0.0.1');
 
-        await verifierRegistryContract.update('1.1.1.1')
+        await verifierRegistryContract.update('mike', '1.1.1.1')
           .then((response) => {
             [eventLog] = response.logs;
           });
@@ -192,6 +218,10 @@ contract('VerifierRegistry', (accounts) => {
 
       it('should emit update event with verifier id', () => {
         assert.equal(eventLog.args.id, accounts[0]);
+      });
+
+      it('should emit update event with verifier id', () => {
+        assert.equal(eventLog.args.name, 'mike');
       });
 
       it('should emit update event with verifier location', () => {
@@ -220,7 +250,7 @@ contract('VerifierRegistry', (accounts) => {
     });
 
     it('should be active after creation', async () => {
-      await verifierRegistryContract.create('127.0.0.1');
+      await verifierRegistryContract.create('mike', '127.0.0.1');
       const verifier = formatVerifier(await verifierRegistryContract.verifiers(accounts[0]));
 
       assert.isTrue(verifier.active);
@@ -282,7 +312,7 @@ contract('VerifierRegistry', (accounts) => {
           { from: accounts[0] },
         );
 
-        await verifierRegistryContract.create('127.0.0.1');
+        await verifierRegistryContract.create('mike', '127.0.0.1');
 
         await verifierRegistryContract.receiveApproval(accounts[0], 0, '0x123', '');
 
@@ -296,13 +326,13 @@ contract('VerifierRegistry', (accounts) => {
         const balance = new BN('950', 10);
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
 
-        assert.equal(verifier[3], balance.toNumber());
+        assert.equal(verifier[4], balance.toNumber());
       });
 
       it('should have valid total balance per shard after withdraw', async () => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
         const balance =
-          await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
+          await verifierRegistryContract.balancesPerShard.call(verifier[5].toString());
 
         assert.equal(balance.toString(), (cost - withdraw).toString());
       });
@@ -315,7 +345,7 @@ contract('VerifierRegistry', (accounts) => {
     beforeEach(async () => {
       verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
 
-      await verifierRegistryContract.create('127.0.0.1');
+      await verifierRegistryContract.create('mike', '127.0.0.1');
     });
 
     it('should change token address', async () => {
