@@ -1,6 +1,6 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.0;
 
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "token-sale-contracts/contracts/Token.sol";
 import "token-sale-contracts/contracts/HumanStandardToken.sol";
 
@@ -52,7 +52,7 @@ contract VerifierRegistry is Ownable {
     verifiersPerShard = _verifiersPerShard;
   }
 
-  function create(string _name, string _location) public {
+  function create(string memory _name, string memory _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
     require(verifier.id == address(0), "verifier already exists");
@@ -83,14 +83,14 @@ contract VerifierRegistry is Ownable {
     return addresses.length;
   }
 
-  function receiveApproval(address _from, uint256 _value, address _token, bytes _data) public returns (bool success) {
+  function receiveApproval(address _from, uint256 _value, address _token, bytes memory _data) public returns (bool success) {
     Token token = Token(tokenAddress);
 
-    uint256 allowance = token.allowance(_from, this);
+    uint256 allowance = token.allowance(_from, address(this));
 
     require(allowance > 0, "nothing to approve");
 
-    require(token.transferFrom(_from, this, allowance), "transferFrom failed");
+    require(token.transferFrom(_from, address(this), allowance), "transferFrom failed");
 
     verifiers[_from].balance += allowance;
 
@@ -103,7 +103,7 @@ contract VerifierRegistry is Ownable {
     return true;
   }
 
-  function update(string _name, string _location) public {
+  function update(string memory _name, string memory _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
     require(verifier.id != address(0), "verifier do not exists");
@@ -169,13 +169,16 @@ contract VerifierRegistry is Ownable {
     emit LogUpdateActiveStatus(msg.sender, _verifierAddress, _active);
   }
 
-  function hashName(string _base) internal pure returns (bytes32) {
+  function hashName(string memory _base) internal pure returns (bytes32) {
+    bytes1 A = "A";
+    bytes1 Z = "Z";
+
     bytes memory baseBytes = bytes(_base);
     for(uint i = 0; i < baseBytes.length; i++) {
-      if ((baseBytes[i] >= 65) && (baseBytes[i] <= 90)) {
-        baseBytes[i] = bytes1(int(baseBytes[i]) + 32);
+      if ((baseBytes[i] >= A) && (baseBytes[i] <= Z)) {
+        baseBytes[i] = bytes1(uint8(baseBytes[i]) + 32);
       }
     }
-    return keccak256(_base);
+    return keccak256(abi.encodePacked(_base));
   }
 }
