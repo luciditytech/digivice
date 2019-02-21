@@ -1,13 +1,17 @@
-var chai = require("chai");
-var chaiAsPromised = require("chai-as-promised");
+const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
+
 chai.use(chaiAsPromised);
 
-var assert = chai.assert;
+const assert = chai.assert;
 
 const BN = require('bn.js');
+const { fromAscii } = require('web3-utils');
 
 const HumanStandardToken = artifacts.require('token-sale-contracts/contracts/HumanStandardToken.sol');
 const VerifierRegistry = artifacts.require('VerifierRegistry');
+
+const tokenAddress = `0x${'2'.repeat(40)}`;
 
 function formatVerifier(verifier) {
   return {
@@ -26,7 +30,7 @@ contract('VerifierRegistry', (accounts) => {
     let eventLog;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+      verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
 
       await verifierRegistryContract.create('paul', '127.0.0.1')
         .then((response) => {
@@ -52,20 +56,19 @@ contract('VerifierRegistry', (accounts) => {
       const address = await verifierRegistryContract.addresses.call(0);
       const verifier = await verifierRegistryContract.verifiers.call(address);
 
-      const balance =
-        await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
+      const balance = await verifierRegistryContract.balancesPerShard.call(verifier[4].toString());
 
       assert.equal(balance.toString(), '0');
     });
 
     it('should require verifier to not be already created', async () => {
-        await assert.isRejected(verifierRegistryContract.create('mike', '127.0.0.1'))
+      await assert.isRejected(verifierRegistryContract.create('mike', '127.0.0.1'));
     });
 
     it('should provide some unique name', async () => {
       await assert.isRejected(verifierRegistryContract.create('paul', '127.0.0.2', {
-        from: accounts[1]
-      }))
+        from: accounts[1],
+      }));
     });
 
     it('should emit event when verifier has registered', () => {
@@ -103,7 +106,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+      verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
 
       await verifierRegistryContract.create('mike', '127.0.0.1');
     });
@@ -122,7 +125,7 @@ contract('VerifierRegistry', (accounts) => {
       beforeEach(async () => {
         cost = new BN('1000', 10);
 
-        verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+        verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
 
         humanStandardToken = await HumanStandardToken.deployed();
 
@@ -136,7 +139,7 @@ contract('VerifierRegistry', (accounts) => {
 
         await verifierRegistryContract.create('mike', '127.0.0.1');
 
-        await verifierRegistryContract.receiveApproval(accounts[0], 0, '0x123', '');
+        await verifierRegistryContract.receiveApproval(accounts[0], 0, tokenAddress, fromAscii(''));
       });
 
       it('should deposit tokens to stake', async () => {
@@ -147,8 +150,9 @@ contract('VerifierRegistry', (accounts) => {
 
       it('should have valid total balance per shard', async () => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
-        const balance =
-          await verifierRegistryContract.balancesPerShard.call(verifier[5].toString());
+        const balance = await verifierRegistryContract.balancesPerShard.call(
+          verifier[5].toString(),
+        );
 
         assert.equal(balance.toString(), cost.toString());
       });
@@ -159,7 +163,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+      verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
     });
 
     it('should update verifier location', async () => {
@@ -183,12 +187,12 @@ contract('VerifierRegistry', (accounts) => {
       await verifierRegistryContract.create('mike', '127.0.0.1');
 
       await verifierRegistryContract.create('paul', '127.0.0.1', {
-        from: accounts[1]
+        from: accounts[1],
       });
 
       await assert.isRejected(verifierRegistryContract.update('Mike', '127.0.0.1', {
-          from: accounts[1]
-        }))
+        from: accounts[1],
+      }));
     });
 
     it('should emit event when verifier has been updated', async () => {
@@ -246,7 +250,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     before(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+      verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
     });
 
     it('should be active after creation', async () => {
@@ -298,7 +302,7 @@ contract('VerifierRegistry', (accounts) => {
         cost = new BN('1000', 10);
         withdraw = new BN('50', 10);
 
-        verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+        verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
 
         humanStandardToken = await HumanStandardToken.deployed();
 
@@ -314,7 +318,7 @@ contract('VerifierRegistry', (accounts) => {
 
         await verifierRegistryContract.create('mike', '127.0.0.1');
 
-        await verifierRegistryContract.receiveApproval(accounts[0], 0, '0x123', '');
+        await verifierRegistryContract.receiveApproval(accounts[0], 0, tokenAddress, fromAscii(''));
 
         await verifierRegistryContract.withdraw(
           withdraw.toNumber(),
@@ -331,8 +335,9 @@ contract('VerifierRegistry', (accounts) => {
 
       it('should have valid total balance per shard after withdraw', async () => {
         const verifier = await verifierRegistryContract.verifiers.call(accounts[0]);
-        const balance =
-          await verifierRegistryContract.balancesPerShard.call(verifier[5].toString());
+        const balance = await verifierRegistryContract.balancesPerShard.call(
+          verifier[5].toString(),
+        );
 
         assert.equal(balance.toString(), (cost - withdraw).toString());
       });
@@ -343,17 +348,16 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+      verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
 
       await verifierRegistryContract.create('mike', '127.0.0.1');
     });
 
     it('should change token address', async () => {
-      await verifierRegistryContract.updateTokenAddress(0x123);
+      const newTokkenAddr = `0x${'3'.repeat(40)}`;
+      await verifierRegistryContract.updateTokenAddress(newTokkenAddr);
 
-      const tokenAddress = await verifierRegistryContract.tokenAddress();
-
-      assert.equal(tokenAddress, 0x123);
+      assert.equal(await verifierRegistryContract.tokenAddress(), newTokkenAddr);
     });
   });
 
@@ -361,7 +365,7 @@ contract('VerifierRegistry', (accounts) => {
     let verifierRegistryContract;
 
     beforeEach(async () => {
-      verifierRegistryContract = await VerifierRegistry.new('0x123', 3);
+      verifierRegistryContract = await VerifierRegistry.new(tokenAddress, 3);
     });
 
     it('should change number of verifiers per shard', async () => {
