@@ -36,7 +36,6 @@
     "jssha": "^2.3.1",
     "ministro-tool": "^0.2.2",
     "token-sale-contracts": "git@github.com:luciditytech/token-sale-contracts.git#c64ce34a3852adf6d3f06d5cdb644767760720e0",
-    "contract-registry": "git@github.com:luciditytech/contract-registry.git#2c3dfb374aeef889a55488db03446cc1a8eb3d51",
     "truffle": "^5.0.3",
     "truffle-flattener": "^1.2.12",
     "truffle-hdwallet-provider": "1.0.3",
