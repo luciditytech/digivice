@@ -7,31 +7,37 @@ import "token-sale-contracts/contracts/HumanStandardToken.sol";
 contract VerifierRegistry is Ownable {
   event LogVerifierRegistered(
     address id,
+    string name,
     string location,
-    bool created,
+    bool active,
     uint256 balance,
     uint256 shard
   );
 
   event LogVerifierUpdated(
     address id,
+    string name,
     string location,
-    bool created,
+    bool active,
     uint256 balance,
     uint256 shard
   );
 
   event LogBalancePerShard(uint256 shard, uint256 balance);
 
+  event LogUpdateActiveStatus(address executor, address verifier, bool active);
+
   struct Verifier {
     address id;
+    string name;
     string location;
-    bool created;
+    bool active;
     uint256 balance;
     uint256 shard;
   }
 
   mapping(address => Verifier) public verifiers;
+  mapping(bytes32 => bool) public uniqueNames;
 
   /// @dev shard => balance
   mapping(uint256 => uint256) public balancesPerShard;
@@ -46,22 +52,28 @@ contract VerifierRegistry is Ownable {
     verifiersPerShard = _verifiersPerShard;
   }
 
-  function create(string _location) public {
+  function create(string _name, string _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(!verifier.created, "verifier already exists");
+    require(verifier.id == address(0), "verifier already exists");
+
+    bytes32 hash = hashName(_name);
+    require(!uniqueNames[hash], "specified name is not available");
+    uniqueNames[hash] = true;
 
     verifier.id = msg.sender;
+    verifier.name = _name;
     verifier.location = _location;
-    verifier.created = true;
+    verifier.active = true;
     verifier.shard = uint256(addresses.length) / verifiersPerShard;
 
     addresses.push(verifier.id);
 
     emit LogVerifierRegistered(
       verifier.id,
+      verifier.name,
       verifier.location,
-      verifier.created,
+      verifier.active,
       verifier.balance,
       verifier.shard
     );
@@ -91,17 +103,25 @@ contract VerifierRegistry is Ownable {
     return true;
   }
 
-  function update(string _location) public {
+  function update(string _name, string _location) public {
     Verifier storage verifier = verifiers[msg.sender];
 
-    require(verifier.created, "verifier do not exists");
+    require(verifier.id != address(0), "verifier do not exists");
 
+    bytes32 hash = hashName(_name);
+    bytes32 oldHash = hashName(verifier.name);
+    require(hash == oldHash || !uniqueNames[hash], "specified name is not available");
+    uniqueNames[oldHash] = false;
+    uniqueNames[hash] = true;
+
+    verifier.name = _name;
     verifier.location = _location;
 
     emit LogVerifierUpdated(
       verifier.id,
+      verifier.name,
       verifier.location,
-      verifier.created,
+      verifier.active,
       verifier.balance,
       verifier.shard
     );
@@ -137,5 +157,25 @@ contract VerifierRegistry is Ownable {
     require(_newVerifiersPerShard > 0, "_newVerifiersPerShard is empty");
 
     verifiersPerShard = _newVerifiersPerShard;
+  }
+
+  function updateActiveStatus(address _verifierAddress, bool _active) public onlyOwner {
+    Verifier storage verifier = verifiers[_verifierAddress];
+    require(verifier.id != address(0), "verifier do not exists");
+    require(verifier.active != _active, "no changes to active flag");
+
+    verifier.active = _active;
+
+    emit LogUpdateActiveStatus(msg.sender, _verifierAddress, _active);
+  }
+
+  function hashName(string _base) internal pure returns (bytes32) {
+    bytes memory baseBytes = bytes(_base);
+    for(uint i = 0; i < baseBytes.length; i++) {
+      if ((baseBytes[i] >= 65) && (baseBytes[i] <= 90)) {
+        baseBytes[i] = bytes1(int(baseBytes[i]) + 32);
+      }
+    }
+    return keccak256(_base);
   }
 }
