@@ -1,6 +1,9 @@
 {
   "VerifierRegistry": {
-    "tokenAddress": "0x1588d300a9995934aa9daae19be285a66eb46c1c",
-    "verifiersPerShard": 5
+    "name": "0x5665726966696572526567697374727900000000000000000000000000000000",
+    "verifiersPerShard": 100
+  },
+  "ContractRegistry": {
+    "address": "0x0000000000000000000000000000000000000001"
   }
 }

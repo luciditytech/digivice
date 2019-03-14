@@ -1,10 +1,23 @@
-pragma solidity ^0.5.0;
+pragma solidity 0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "token-sale-contracts/contracts/Token.sol";
-import "token-sale-contracts/contracts/HumanStandardToken.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
-contract VerifierRegistry is Ownable {
+import "contract-registry/contracts/interfaces/IContractRegistry.sol";
+import "contract-registry/contracts/storage/interfaces/IStorageBase.sol";
+import "contract-registry/contracts/storageStrategy/interfaces/IStorageStrategy.sol";
+import "contract-registry/contracts/interfaces/RegistrableWithSingleStorage.sol";
+import "token-incentivized-sidechains/contracts/interfaces/IStakingBank.sol";
+
+import "./interfaces/IVerifierRegistry.sol";
+import "./VerifierRegistryStorage.sol";
+
+contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleStorage {
+
+  using SafeMath for uint256;
+
+  bytes32 constant NAME = "VerifierRegistry";
+
   event LogVerifierRegistered(
     address id,
     string name,
@@ -27,146 +40,119 @@ contract VerifierRegistry is Ownable {
 
   event LogUpdateActiveStatus(address executor, address verifier, bool active);
 
-  struct Verifier {
-    address id;
-    string name;
-    string location;
-    bool active;
-    uint256 balance;
-    uint256 shard;
+  constructor(address _registry, IStorageBase _storage)
+  public
+  RegistrableWithSingleStorage(_registry, _storage) {}
+
+  function contractName() external view returns (bytes32) {
+    return NAME;
   }
 
-  mapping(address => Verifier) public verifiers;
-  mapping(bytes32 => bool) public uniqueNames;
+  function _storage() private view returns (VerifierRegistryStorage) {
+    return VerifierRegistryStorage(address(singleStorage));
+  }
 
-  /// @dev shard => balance
-  mapping(uint256 => uint256) public balancesPerShard;
+  function _getStakingBalance(address _verifier) private view returns (uint256) {
+    IStakingBank bank = IStakingBank(contractRegistry.contractByName("StakingBank"));
+    require(address(bank) != address(0x0), "StakingBank address unknown");
 
-  address[] public addresses;
-  address public tokenAddress;
-  uint256 public verifiersPerShard;
-
-  constructor(address _tokenAddress, uint256 _verifiersPerShard)
-  public {
-    tokenAddress = _tokenAddress;
-    verifiersPerShard = _verifiersPerShard;
+    return _storage().getVerifierActive(_verifier) ? bank.stakingBalance(_verifier) : 0;
   }
 
   function create(string memory _name, string memory _location) public {
-    Verifier storage verifier = verifiers[msg.sender];
+    VerifierRegistryStorage vrStorage = _storage();
+    VerifierRegistryStorage.Verifier memory verifier;
+    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard) = vrStorage.verifiers(msg.sender);
 
     require(verifier.id == address(0), "verifier already exists");
 
     bytes32 hash = hashName(_name);
-    require(!uniqueNames[hash], "specified name is not available");
-    uniqueNames[hash] = true;
+    require(!vrStorage.uniqueNames(hash), "specified name is not available");
+    vrStorage.setUniqueNames(hash, true);
 
     verifier.id = msg.sender;
     verifier.name = _name;
     verifier.location = _location;
     verifier.active = true;
-    verifier.shard = uint256(addresses.length) / verifiersPerShard;
+    verifier.shard = uint256(vrStorage.addressesLength()) / vrStorage.verifiersPerShard();
 
-    addresses.push(verifier.id);
+    vrStorage.setVerifier(
+      verifier.id,
+      verifier.name,
+      verifier.location,
+      verifier.active,
+      verifier.shard
+    );
+
+    vrStorage.addressesPush(verifier.id);
 
     emit LogVerifierRegistered(
       verifier.id,
       verifier.name,
       verifier.location,
       verifier.active,
-      verifier.balance,
+      _getStakingBalance(verifier.id),
       verifier.shard
     );
   }
 
-  function getNumberOfVerifiers() public view returns (uint) {
-    return addresses.length;
-  }
-
-  function receiveApproval(address _from, uint256 _value, address _token, bytes memory _data) public returns (bool success) {
-    Token token = Token(tokenAddress);
-
-    uint256 allowance = token.allowance(_from, address(this));
-
-    require(allowance > 0, "nothing to approve");
-
-    require(token.transferFrom(_from, address(this), allowance), "transferFrom failed");
-
-    verifiers[_from].balance += allowance;
-
-    uint256 shard = verifiers[_from].shard;
-    uint256 shardBalance = balancesPerShard[shard] + allowance;
-    balancesPerShard[shard] = shardBalance;
-
-    emit LogBalancePerShard(shard, shardBalance);
-
-    return true;
+  function getNumberOfVerifiers() public view returns (uint256) {
+    return _storage().addressesLength();
   }
 
   function update(string memory _name, string memory _location) public {
-    Verifier storage verifier = verifiers[msg.sender];
+    VerifierRegistryStorage vrStorage = _storage();
+    VerifierRegistryStorage.Verifier memory verifier;
+    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard) = vrStorage.verifiers(msg.sender);
 
     require(verifier.id != address(0), "verifier do not exists");
 
     bytes32 hash = hashName(_name);
     bytes32 oldHash = hashName(verifier.name);
-    require(hash == oldHash || !uniqueNames[hash], "specified name is not available");
-    uniqueNames[oldHash] = false;
-    uniqueNames[hash] = true;
+
+    require(hash == oldHash || !vrStorage.uniqueNames(hash), "specified name is not available");
+    vrStorage.setUniqueNames(oldHash, false);
+    vrStorage.setUniqueNames(hash, true);
 
     verifier.name = _name;
     verifier.location = _location;
+
+    vrStorage.setVerifier(
+      verifier.id,
+      verifier.name,
+      verifier.location,
+      verifier.active,
+      verifier.shard
+    );
 
     emit LogVerifierUpdated(
       verifier.id,
       verifier.name,
       verifier.location,
       verifier.active,
-      verifier.balance,
+      _getStakingBalance(verifier.id),
       verifier.shard
     );
   }
 
-  function withdraw(uint256 _value) public returns (bool) {
-    Verifier storage verifier = verifiers[msg.sender];
-
-    require(_value > 0 && verifier.balance >= _value, "nothing to withdraw");
-
-    verifier.balance -= _value;
-
-    uint256 shard = verifier.shard;
-    uint256 shardBalance = balancesPerShard[shard] - _value;
-    balancesPerShard[shard] = shardBalance;
-
-    emit LogBalancePerShard(shard, shardBalance);
-
-    Token token = Token(tokenAddress);
-
-    require(token.transfer(msg.sender, _value), "transfer failed");
-
-    return true;
-  }
-
-  function updateTokenAddress(address _newTokenAddress) public onlyOwner {
-    require(_newTokenAddress != address(0), "empty token address");
-
-    tokenAddress = _newTokenAddress;
-  }
-
   function updateVerifiersPerShard(uint256 _newVerifiersPerShard) public onlyOwner {
     require(_newVerifiersPerShard > 0, "_newVerifiersPerShard is empty");
-
-    verifiersPerShard = _newVerifiersPerShard;
+    _storage().setVerifiersPerShard(_newVerifiersPerShard);
   }
 
-  function updateActiveStatus(address _verifierAddress, bool _active) public onlyOwner {
-    Verifier storage verifier = verifiers[_verifierAddress];
+  function updateActiveStatus(address _verifier, bool _active) public onlyOwner {
+    VerifierRegistryStorage vrStorage = _storage();
+    VerifierRegistryStorage.Verifier memory verifier;
+    (verifier.id, , , verifier.active, ) = vrStorage.verifiers(_verifier);
+
     require(verifier.id != address(0), "verifier do not exists");
     require(verifier.active != _active, "no changes to active flag");
 
-    verifier.active = _active;
+    vrStorage.setVerifierActive(_verifier, _active);
 
-    emit LogUpdateActiveStatus(msg.sender, _verifierAddress, _active);
+    _updateBalancePerShard(_verifier, _active ? _getStakingBalance(_verifier) : 0);
+
+    emit LogUpdateActiveStatus(msg.sender, _verifier, _active);
   }
 
   function hashName(string memory _base) internal pure returns (bytes32) {
@@ -180,5 +166,83 @@ contract VerifierRegistry is Ownable {
       }
     }
     return keccak256(abi.encodePacked(_base));
+  }
+
+  function verifiers(address _verifier) external view returns (
+    address id,
+    string memory name,
+    string memory location,
+    bool active,
+    uint256 balance,
+    uint256 shard
+  ) {
+    VerifierRegistryStorage.Verifier memory verifier;
+    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard) = _storage().verifiers(_verifier);
+
+    return (
+      verifier.id,
+      verifier.name,
+      verifier.location,
+      verifier.active,
+      _getStakingBalance(verifier.id),
+      verifier.shard
+    );
+  }
+
+  function uniqueNames(bytes32 _hash) external view returns (bool) {
+    return _storage().uniqueNames(_hash);
+  }
+
+  function balancesPerShard(uint256 _shard) external view returns (uint256) {
+    return _storage().balancesPerShard(_shard);
+  }
+
+  function addresses(uint256 _i) external view returns (address) {
+    return _storage().addresses(_i);
+  }
+
+  function verifiersPerShard() external view returns (uint256) {
+    return _storage().verifiersPerShard();
+  }
+
+  function isRegisteredVerifier(address _toCheck) external view returns (bool) {
+    address id;
+    (id, , , , ) = _storage().verifiers(_toCheck);
+    return id != address(0x0);
+  }
+
+  function _updateBalancePerShard(address _verifier, uint256 _newBalance)
+  private {
+    VerifierRegistryStorage vrStorage = _storage();
+
+    uint256 shard = vrStorage.getVerifierShard(_verifier);
+    uint256 verifierOldBalance = _getStakingBalance(_verifier);
+    uint256 newShardBalance = vrStorage.balancesPerShard(shard).sub(verifierOldBalance).add(_newBalance);
+
+    vrStorage.setBalancePerShard(shard, newShardBalance);
+
+    emit LogBalancePerShard(shard, newShardBalance);
+  }
+
+  function increaseShardBalance(address _verifier, uint256 _amount)
+  external
+  onlyFromContract("StakingBank")
+  returns (bool) {
+    VerifierRegistryStorage vrStorage = _storage();
+    uint256 shard = vrStorage.getVerifierShard(_verifier);
+
+    vrStorage.setBalancePerShard(shard, vrStorage.balancesPerShard(shard).add(_amount));
+    return true;
+  }
+
+  function decreaseShardBalance(address _verifier, uint256 _amount)
+  external
+  onlyFromContract("StakingBank")
+  returns (bool) {
+    VerifierRegistryStorage vrStorage = _storage();
+    uint256 shard = vrStorage.getVerifierShard(_verifier);
+
+    vrStorage.setBalancePerShard(shard, vrStorage.balancesPerShard(shard).sub(_amount));
+    return true;
   }
 }
