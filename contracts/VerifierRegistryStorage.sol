@@ -11,6 +11,7 @@ contract VerifierRegistryStorage is StorageBase {
     string location;
     bool active;
     uint256 shard;
+    bool enable;
   }
 
   mapping(address => Verifier) public verifiers;
@@ -42,11 +43,12 @@ contract VerifierRegistryStorage is StorageBase {
     string calldata _name,
     string calldata _location,
     bool _active,
-    uint256 _shard
+    uint256 _shard,
+    bool _enable
   )
   external
   onlyFromStorageOwner {
-    verifiers[_id] = Verifier(_id, _name, _location, _active, _shard);
+    verifiers[_id] = Verifier(_id, _name, _location, _active, _shard, _enable);
   }
 
   function setVerifierName(address _verifier, string calldata _name)
@@ -65,6 +67,12 @@ contract VerifierRegistryStorage is StorageBase {
   external
   onlyFromStorageOwner {
     verifiers[_verifier].active = _active;
+  }
+
+  function setVerifierEnable(address _verifier, bool _enable)
+  external
+  onlyFromStorageOwner {
+    verifiers[_verifier].enable = _enable;
   }
 
   function setVerifierShard(address _verifier, uint256 _shard)
@@ -101,6 +109,14 @@ contract VerifierRegistryStorage is StorageBase {
 
   function getVerifierActive(address _verifier) external view returns (bool) {
     return verifiers[_verifier].active;
+  }
+
+  function getVerifierEnable(address _verifier) external view returns (bool) {
+    return verifiers[_verifier].enable;
+  }
+
+  function getVerifierEnableActive(address _verifier) external view returns (bool, bool) {
+    return (verifiers[_verifier].enable, verifiers[_verifier].active);
   }
 
   function getVerifierShard(address _verifier) external view returns (uint256) {
