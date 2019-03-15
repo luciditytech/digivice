@@ -7,7 +7,7 @@ import "contract-registry/contracts/interfaces/IContractRegistry.sol";
 import "contract-registry/contracts/storage/interfaces/IStorageBase.sol";
 import "contract-registry/contracts/storageStrategy/interfaces/IStorageStrategy.sol";
 import "contract-registry/contracts/interfaces/RegistrableWithSingleStorage.sol";
-import "token-incentivized-sidechains/contracts/interfaces/IStakingBank.sol";
+import "staking-bank/contracts/interfaces/IStakingBank.sol";
 
 import "./interfaces/IVerifierRegistry.sol";
 import "./VerifierRegistryStorage.sol";
