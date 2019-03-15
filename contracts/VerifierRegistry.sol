@@ -24,7 +24,8 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     string location,
     bool active,
     uint256 balance,
-    uint256 shard
+    uint256 shard,
+    bool enable
   );
 
   event LogVerifierUpdated(
@@ -33,12 +34,14 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     string location,
     bool active,
     uint256 balance,
-    uint256 shard
+    uint256 shard,
+    bool enable
   );
 
   event LogBalancePerShard(uint256 shard, uint256 balance);
 
-  event LogUpdateActiveStatus(address executor, address verifier, bool active);
+  event LogUpdateActiveStatus(address verifier, bool active);
+  event LogUpdateEnableStatus(address executor, address verifier, bool enable);
 
   constructor(address _registry, IStorageBase _storage)
   public
@@ -53,18 +56,24 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
   }
 
   function _getStakingBalance(address _verifier) private view returns (uint256) {
+    bool enable;
+    bool active;
+    (enable, active) = _storage().getVerifierEnableActive(_verifier);
+
+    if (!enable || !active) return 0;
+
     IStakingBank bank = IStakingBank(contractRegistry.contractByName("StakingBank"));
     require(address(bank) != address(0x0), "StakingBank address unknown");
 
-    return _storage().getVerifierActive(_verifier) ? bank.stakingBalance(_verifier) : 0;
+    return bank.stakingBalance(_verifier);
   }
 
   function create(string memory _name, string memory _location) public {
     VerifierRegistryStorage vrStorage = _storage();
     VerifierRegistryStorage.Verifier memory verifier;
-    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard) = vrStorage.verifiers(msg.sender);
+    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard, verifier.enable) = vrStorage.verifiers(msg.sender);
 
-    require(verifier.id == address(0), "verifier already exists");
+    require(verifier.id == address(0x0), "verifier already exists");
 
     bytes32 hash = hashName(_name);
     require(!vrStorage.uniqueNames(hash), "specified name is not available");
@@ -73,7 +82,6 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     verifier.id = msg.sender;
     verifier.name = _name;
     verifier.location = _location;
-    verifier.active = true;
     verifier.shard = uint256(vrStorage.addressesLength()) / vrStorage.verifiersPerShard();
 
     vrStorage.setVerifier(
@@ -81,7 +89,8 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
       verifier.name,
       verifier.location,
       verifier.active,
-      verifier.shard
+      verifier.shard,
+      verifier.enable
     );
 
     vrStorage.addressesPush(verifier.id);
@@ -92,7 +101,8 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
       verifier.location,
       verifier.active,
       _getStakingBalance(verifier.id),
-      verifier.shard
+      verifier.shard,
+      verifier.enable
     );
   }
 
@@ -103,9 +113,9 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
   function update(string memory _name, string memory _location) public {
     VerifierRegistryStorage vrStorage = _storage();
     VerifierRegistryStorage.Verifier memory verifier;
-    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard) = vrStorage.verifiers(msg.sender);
+    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard, verifier.enable) = vrStorage.verifiers(msg.sender);
 
-    require(verifier.id != address(0), "verifier do not exists");
+    require(verifier.id != address(0x0), "verifier do not exists");
 
     bytes32 hash = hashName(_name);
     bytes32 oldHash = hashName(verifier.name);
@@ -122,7 +132,8 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
       verifier.name,
       verifier.location,
       verifier.active,
-      verifier.shard
+      verifier.shard,
+      verifier.enable
     );
 
     emit LogVerifierUpdated(
@@ -131,7 +142,8 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
       verifier.location,
       verifier.active,
       _getStakingBalance(verifier.id),
-      verifier.shard
+      verifier.shard,
+      verifier.enable
     );
   }
 
@@ -140,19 +152,34 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     _storage().setVerifiersPerShard(_newVerifiersPerShard);
   }
 
-  function updateActiveStatus(address _verifier, bool _active) public onlyOwner {
+  function updateActiveStatus(bool _active) external {
     VerifierRegistryStorage vrStorage = _storage();
     VerifierRegistryStorage.Verifier memory verifier;
-    (verifier.id, , , verifier.active, ) = vrStorage.verifiers(_verifier);
+    (verifier.id, , , verifier.active, ,verifier.enable) = vrStorage.verifiers(msg.sender);
 
-    require(verifier.id != address(0), "verifier do not exists");
+    require(verifier.id != address(0x0), "verifier do not exists");
     require(verifier.active != _active, "no changes to active flag");
 
-    vrStorage.setVerifierActive(_verifier, _active);
+    vrStorage.setVerifierActive(msg.sender, _active);
 
-    _updateBalancePerShard(_verifier, _active ? _getStakingBalance(_verifier) : 0);
+    _updateBalancePerShard(msg.sender, _active && verifier.enable ? _getStakingBalance(msg.sender) : 0);
 
-    emit LogUpdateActiveStatus(msg.sender, _verifier, _active);
+    emit LogUpdateActiveStatus(msg.sender, _active);
+  }
+
+  function updateEnableStatus(address _verifier, bool _enable) public onlyOwner {
+    VerifierRegistryStorage vrStorage = _storage();
+    VerifierRegistryStorage.Verifier memory verifier;
+    (verifier.id, , ,verifier.active, ,verifier.enable) = vrStorage.verifiers(_verifier);
+
+    require(verifier.id != address(0x0), "verifier do not exists");
+    require(verifier.enable != _enable, "no changes to enable flag");
+
+    vrStorage.setVerifierEnable(_verifier, _enable);
+
+    _updateBalancePerShard(_verifier, _enable && verifier.active ? _getStakingBalance(_verifier) : 0);
+
+    emit LogUpdateEnableStatus(msg.sender, _verifier, _enable);
   }
 
   function hashName(string memory _base) internal pure returns (bytes32) {
@@ -174,10 +201,11 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     string memory location,
     bool active,
     uint256 balance,
-    uint256 shard
+    uint256 shard,
+    bool enable
   ) {
     VerifierRegistryStorage.Verifier memory verifier;
-    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard) = _storage().verifiers(_verifier);
+    (verifier.id, verifier.name, verifier.location, verifier.active, verifier.shard, verifier.enable) = _storage().verifiers(_verifier);
 
     return (
       verifier.id,
@@ -185,7 +213,8 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
       verifier.location,
       verifier.active,
       _getStakingBalance(verifier.id),
-      verifier.shard
+      verifier.shard,
+      verifier.enable
     );
   }
 
@@ -207,7 +236,7 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
 
   function isRegisteredVerifier(address _toCheck) external view returns (bool) {
     address id;
-    (id, , , , ) = _storage().verifiers(_toCheck);
+    (id, , , , , ) = _storage().verifiers(_toCheck);
     return id != address(0x0);
   }
 

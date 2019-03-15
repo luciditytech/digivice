@@ -8,7 +8,8 @@ interface IVerifierRegistry {
     string memory location,
     bool active,
     uint256 balance,
-    uint256 shard
+    uint256 shard,
+    bool enable
   );
 
   function uniqueNames(bytes32) external view returns (bool);
@@ -18,7 +19,8 @@ interface IVerifierRegistry {
 
   function isRegisteredVerifier(address) external view returns (bool);
 
-  function updateActiveStatus(address _verifier, bool _active) external;
+  function updateActiveStatus(bool _active) external;
+  function updateEnableStatus(address _verifier, bool _enable) external;
 
   function increaseShardBalance(address _verifier, uint256 _amount) external returns (bool);
   function decreaseShardBalance(address _verifier, uint256 _amount) external returns (bool);
