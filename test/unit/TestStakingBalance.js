@@ -29,27 +29,46 @@ contract('VerifierRegistry', (accounts) => {
       ));
     });
 
-    describe('when verifier is registered', async () => {
+    describe('when verifier is registered and active/enabled', async () => {
       before(async () => {
         await ministroVerifierRegistry.create('Verifier', 'Location', { from: verifier });
+        await ministroVerifierRegistry.updateActiveStatus(true, { from: verifier });
+        await ministroVerifierRegistry.updateEnableStatus(verifier, true);
         await token.transfer(verifier, 1);
         await token.approveAndCall(stakingBank.address, 1, '0x0', { from: verifier });
       });
 
       it('should have balance', async () => {
-        const { balance, active } = await ministroVerifierRegistry.verifiers(verifier);
-        assert(active, 'should be active');
+        const { balance } = await ministroVerifierRegistry.verifiers(verifier);
         assert(BigNumber(balance).gt(0), 'should have a balance');
       });
 
-      describe('when verifier is disabled', async () => {
-        beforeEach(async () => {
-          await ministroVerifierRegistry.updateActiveStatus(accounts[1], false);
+      describe('when verifier is not active BUT enabled', async () => {
+        before(async () => {
+          await ministroVerifierRegistry.updateActiveStatus(false, { from: verifier });
+          const { active, enable } = await ministroVerifierRegistry.verifiers(verifier);
+          assert(!active);
+          assert(enable);
         });
 
         it('should have NO balance', async () => {
           const { balance } = await ministroVerifierRegistry.verifiers(accounts[1]);
           assert(BigNumber(balance).eq(0), 'should have NO balance');
+        });
+
+        describe('when verifier is active BUT not enabled', async () => {
+          before(async () => {
+            await ministroVerifierRegistry.updateActiveStatus(true, { from: verifier });
+            await ministroVerifierRegistry.updateEnableStatus(verifier, false);
+            const { active, enable } = await ministroVerifierRegistry.verifiers(verifier);
+            assert(active);
+            assert(!enable);
+          });
+
+          it('should have NO balance also', async () => {
+            const { balance } = await ministroVerifierRegistry.verifiers(accounts[1]);
+            assert(BigNumber(balance).eq(0), 'should have NO balance');
+          });
         });
       });
     });
