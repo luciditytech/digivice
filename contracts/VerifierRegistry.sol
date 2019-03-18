@@ -258,7 +258,11 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
   onlyFromContract("StakingBank")
   returns (bool) {
     VerifierRegistryStorage vrStorage = _storage();
-    uint256 shard = vrStorage.getVerifierShard(_verifier);
+
+    address id;
+    uint256 shard;
+    (id, , , , shard, ) = _storage().verifiers(_verifier);
+    require(id != address(0x0), "verifier not exists");
 
     vrStorage.setBalancePerShard(shard, vrStorage.balancesPerShard(shard).add(_amount));
     return true;
@@ -269,7 +273,11 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
   onlyFromContract("StakingBank")
   returns (bool) {
     VerifierRegistryStorage vrStorage = _storage();
-    uint256 shard = vrStorage.getVerifierShard(_verifier);
+
+    address id;
+    uint256 shard;
+    (id, , , , shard, ) = _storage().verifiers(_verifier);
+    require(id != address(0x0), "verifier not exists");
 
     vrStorage.setBalancePerShard(shard, vrStorage.balancesPerShard(shard).sub(_amount));
     return true;
