@@ -1,36 +1,13 @@
 const {
-  deployStakingBank,
-  deployContractRegistry,
   deployVerifierRegistry,
-  deployHumanStandardToken,
 } = require('../helpers/deployers');
-
-const deployAll = async (owner) => {
-  const contractRegistry = await deployContractRegistry();
-  const token = await deployHumanStandardToken();
-  await deployStakingBank(
-    owner,
-    contractRegistry.address,
-    token.address,
-  );
-  const { ministroVerifierRegistry } = await deployVerifierRegistry(
-    owner,
-    contractRegistry.address,
-  );
-
-  return {
-    contractRegistry,
-    token,
-    ministroVerifierRegistry,
-  };
-};
 
 contract('VerifierRegistry', (accounts) => {
   let ministroVerifierRegistry;
 
   describe('#create()', async () => {
     beforeEach(async () => {
-      ({ ministroVerifierRegistry } = await deployAll(accounts[0]));
+      ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
       await ministroVerifierRegistry.create('paul', '127.0.0.1');
     });
 
@@ -68,7 +45,7 @@ contract('VerifierRegistry', (accounts) => {
 
   describe('#getNumberOfVerifiers()', () => {
     beforeEach(async () => {
-      ({ ministroVerifierRegistry } = await deployAll(accounts[0]));
+      ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
 
       await ministroVerifierRegistry.create('mike', '127.0.0.1');
     });
@@ -82,7 +59,7 @@ contract('VerifierRegistry', (accounts) => {
 
   describe('#update()', () => {
     beforeEach(async () => {
-      ({ ministroVerifierRegistry } = await deployAll(accounts[0]));
+      ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
     });
 
     it('should update verifier location', async () => {
@@ -118,7 +95,7 @@ contract('VerifierRegistry', (accounts) => {
 
     before(async () => {
       assert(owner.toLowerCase() !== verifier.toLowerCase());
-      ({ ministroVerifierRegistry } = await deployAll(owner));
+      ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
       await ministroVerifierRegistry.create('mike', '127.0.0.1', { from: verifier });
     });
 
@@ -159,7 +136,7 @@ contract('VerifierRegistry', (accounts) => {
 
   describe('#updateVerifiersPerShard()', () => {
     beforeEach(async () => {
-      ({ ministroVerifierRegistry } = await deployAll(accounts[0]));
+      ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
     });
 
     it('should NOT change number of verifiers per shard to zero', async () => {
@@ -173,7 +150,7 @@ contract('VerifierRegistry', (accounts) => {
 
   describe('increasing/decreasing shard balance', () => {
     before(async () => {
-      ({ ministroVerifierRegistry } = await deployAll(accounts[0]));
+      ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
     });
 
     it('only StakingBank should have access to increaseShardBalance()', async () => {

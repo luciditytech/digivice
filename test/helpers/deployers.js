@@ -1,48 +1,35 @@
-const StakingBankStorage = artifacts.require('StakingBankStorage');
-const StakingBank = artifacts.require('StakingBank');
-const ContractRegistry = artifacts.require('ContractRegistry');
-const VerifierRegistryStorage = artifacts.require('VerifierRegistryStorage');
-const VerifierRegistry = artifacts.require('VerifierRegistry');
-const HumanStandardToken = artifacts.require('HumanStandardToken');
+const StakingBankArtifact = artifacts.require('StakingBank');
+const ContractRegistryArtifact = artifacts.require('ContractRegistry');
+const VerifierRegistryStorageArtifact = artifacts.require('VerifierRegistryStorage');
+const VerifierRegistryArtifact = artifacts.require('VerifierRegistry');
 
-const tokenConf = require('token-sale-contracts/conf/development');
 const verifierRegistryConfig = require('../../config/development');
 
 const VerifierRegistryUtil = require('../ministro-contracts/ministroVerifierRegistry');
 
-const deployContractRegistry = async () => ContractRegistry.new();
+const deployContractRegistry = async () => ContractRegistryArtifact.new();
 
-const deployHumanStandardToken = async () => HumanStandardToken.new(
-  tokenConf.total,
-  tokenConf.name,
-  tokenConf.decimals,
-  tokenConf.symbol,
-);
+const deployStakingBank = async (owner, contractRegistryAddr, verifierRegistryAddr) => {
+  const contractRegistry = await ContractRegistryArtifact.at(contractRegistryAddr);
 
-const deployStakingBank = async (owner, contractRegistryAddr, tokenAddr) => {
-  const contractRegistry = await ContractRegistry.at(contractRegistryAddr);
-
-  const storage = await StakingBankStorage.new(tokenAddr);
-
-  const stakingBankInstance = await StakingBank.new(
-    contractRegistryAddr,
-    storage.address,
+  const stakingBankInstance = await StakingBankArtifact.new(
+    verifierRegistryAddr,
   );
 
-  await storage.initStorageOwner(stakingBankInstance.address);
   await contractRegistry.add(stakingBankInstance.address);
 
   return stakingBankInstance;
 };
 
-async function deployVerifierRegistry(owner, contractRegistryAddr) {
-  const contractRegistry = await ContractRegistry.at(contractRegistryAddr);
-  const verifierRegistryStorageInstance = await VerifierRegistryStorage.new(
+async function deployVerifierRegistry(owner) {
+  const contractRegistry = await deployContractRegistry();
+
+  const verifierRegistryStorageInstance = await VerifierRegistryStorageArtifact.new(
     verifierRegistryConfig.VerifierRegistry.verifiersPerShard,
   );
 
-  const verifierRegistryInstance = await VerifierRegistry.new(
-    contractRegistryAddr,
+  const verifierRegistryInstance = await VerifierRegistryArtifact.new(
+    contractRegistry.address,
     verifierRegistryStorageInstance.address,
   );
 
@@ -51,16 +38,9 @@ async function deployVerifierRegistry(owner, contractRegistryAddr) {
     { from: owner },
   );
 
-  const name = await verifierRegistryInstance.contractName.call();
-  const addr = await contractRegistry.contractByName(name);
+  await contractRegistry.add(verifierRegistryInstance.address);
 
-  if (parseInt(addr, 16) === 0) {
-    await contractRegistry.add(verifierRegistryInstance.address);
-  } else if (addr.toLowerCase() === verifierRegistryInstance.address.toLowerCase()) {
-    // we are good
-  } else {
-    await contractRegistry.update(verifierRegistryInstance.address);
-  }
+  await deployStakingBank(owner, contractRegistry.address, verifierRegistryInstance.address);
 
   const ministroVerifierRegistry = VerifierRegistryUtil();
   ministroVerifierRegistry.setInstanceVar(verifierRegistryInstance);
@@ -74,8 +54,5 @@ async function deployVerifierRegistry(owner, contractRegistryAddr) {
 
 
 module.exports = {
-  deployContractRegistry,
   deployVerifierRegistry,
-  deployHumanStandardToken,
-  deployStakingBank,
 };
