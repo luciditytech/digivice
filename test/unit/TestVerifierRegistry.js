@@ -89,7 +89,7 @@ contract('VerifierRegistry', (accounts) => {
     });
   });
 
-  describe('update active/enable status', () => {
+  describe('update active/enabled status', () => {
     const owner = accounts[0];
     const verifier = accounts[1];
 
@@ -99,25 +99,17 @@ contract('VerifierRegistry', (accounts) => {
       await ministroVerifierRegistry.create('mike', '127.0.0.1', { from: verifier });
     });
 
-    it('should NOT be able to update active status by not a verifier', async () => {
-      await ministroVerifierRegistry.updateActiveStatus(
-        verifier,
-        true,
-        { from: owner },
-        true,
-      );
-    });
-
-    it('should be able to update active state by verifier', async () => {
+    it('should NOT be able to update active status when disabled', async () => {
       await ministroVerifierRegistry.updateActiveStatus(
         verifier,
         true,
         { from: verifier },
+        true,
       );
     });
 
-    it('should NOT be able to update enable state by not an owner', async () => {
-      await ministroVerifierRegistry.updateEnableStatus(
+    it('should NOT be able to update enabled state by not an owner', async () => {
+      await ministroVerifierRegistry.updateEnabledStatus(
         verifier,
         true,
         { from: verifier },
@@ -125,12 +117,31 @@ contract('VerifierRegistry', (accounts) => {
       );
     });
 
-    it('should be able to update enable state by owner', async () => {
-      await ministroVerifierRegistry.updateEnableStatus(
-        verifier,
-        true,
-        { from: owner },
-      );
+    describe('when verifier is enabled', () => {
+      before(async () => {
+        await ministroVerifierRegistry.updateEnabledStatus(
+          verifier,
+          true,
+          { from: owner },
+        );
+      });
+
+      it('should NOT be possible to update active status if sender is not a verifier', async () => {
+        await ministroVerifierRegistry.updateActiveStatus(
+          verifier,
+          true,
+          { from: owner },
+          true,
+        );
+      });
+
+      it('should be possible to update active state by verifier', async () => {
+        await ministroVerifierRegistry.updateActiveStatus(
+          verifier,
+          true,
+          { from: verifier },
+        );
+      });
     });
   });
 

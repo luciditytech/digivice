@@ -18,6 +18,7 @@ contract('VerifierRegistry', (accounts) => {
   describe('when all dependency contracts are in place', async () => {
     before(async () => {
       ({ ministroVerifierRegistry } = await deployVerifierRegistry(accounts[0]));
+
       const contractRegistry = await ContractRegistryArtifact
         .at(await ministroVerifierRegistry.instance.contractRegistry.call());
       stakingBank = await StakingBankArtifact.at(await contractRegistry.contractByName.call(fromAscii('StakingBank')));
@@ -41,8 +42,8 @@ contract('VerifierRegistry', (accounts) => {
       before(async () => {
         await ministroVerifierRegistry.create('Verifier', 'Location', { from: verifier });
         await stakingBank.setBalance(verifier, 1);
+        await ministroVerifierRegistry.updateEnabledStatus(verifier, true);
         await ministroVerifierRegistry.updateActiveStatus(true, { from: verifier });
-        await ministroVerifierRegistry.updateEnableStatus(verifier, true);
       });
 
       it('should have balance', async () => {
@@ -71,9 +72,9 @@ contract('VerifierRegistry', (accounts) => {
       describe('when verifier is not active BUT enabled', async () => {
         before(async () => {
           await ministroVerifierRegistry.updateActiveStatus(false, { from: verifier });
-          const { active, enable } = await ministroVerifierRegistry.verifiers(verifier);
+          const { active, enabled } = await ministroVerifierRegistry.verifiers(verifier);
           assert(!active);
-          assert(enable);
+          assert(enabled);
         });
 
         it('should have NO balance', async () => {
@@ -84,26 +85,6 @@ contract('VerifierRegistry', (accounts) => {
         it('should have NO balance per shard', async () => {
           const balance = await ministroVerifierRegistry.balancesPerShard(verifierShard);
           assert(balance.toString(), '0', 'invalid balance per shard');
-        });
-
-        describe('when verifier is active BUT not enabled', async () => {
-          before(async () => {
-            await ministroVerifierRegistry.updateActiveStatus(true, { from: verifier });
-            await ministroVerifierRegistry.updateEnableStatus(verifier, false);
-            const { active, enable } = await ministroVerifierRegistry.verifiers(verifier);
-            assert(active);
-            assert(!enable);
-          });
-
-          it('should have NO balance also', async () => {
-            const { balance } = await ministroVerifierRegistry.verifiers(accounts[1]);
-            assert(BigNumber(balance).eq(0), 'should have NO balance');
-          });
-
-          it('should have NO balance per shard also', async () => {
-            const balance = await ministroVerifierRegistry.balancesPerShard(verifierShard);
-            assert(balance.toString(), '0', 'invalid balance per shard');
-          });
         });
       });
     });

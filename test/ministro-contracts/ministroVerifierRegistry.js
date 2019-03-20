@@ -28,13 +28,13 @@ function MinistroContract() {
       assert.strictEqual(logVerifierRegistered.name.toLowerCase(), name.toLowerCase(), 'invalid name');
       assert.strictEqual(logVerifierRegistered.location, location, 'invalid location');
       assert(!logVerifierRegistered.active, 'new verifier should be not active');
-      assert(!logVerifierRegistered.enable, 'new verifier should be disabled');
+      assert(!logVerifierRegistered.enabled, 'new verifier should be disabled');
       assert.strictEqual(logVerifierRegistered.balance.toString(), '0', 'new verifier should have no balance');
 
       const verifier = await app.verifiers(txAttrLocal.from);
       assert(areAddressesEqual(logVerifierRegistered.id, verifier.id), 'should be saved onchain');
       assert(!verifier.active, 'should be active after creation onchain');
-      assert(!verifier.enable, 'should be disabled after creation onchain');
+      assert(!verifier.enabled, 'should be disabled after creation onchain');
 
       assert.isFalse(prevVerifierStatus, 'should be NOT recognizable as verifier before registration');
       assert.isTrue(await app.isRegisteredVerifier(verifier.id), 'should be recognizable as verifier');
@@ -91,26 +91,30 @@ function MinistroContract() {
     return results;
   };
 
-  app.updateEnableStatus = async (verifier, enable, txAttr, expectThrow) => {
+  app.updateEnabledStatus = async (verifier, enabled, txAttr, expectThrow) => {
     const txAttrLocal = app.getTxAttr(txAttr);
 
-    const action = () => app.instance.updateEnableStatus(verifier, enable, txAttrLocal);
+    const action = () => app.instance.updateEnabledStatus(verifier, enabled, txAttrLocal);
 
-    const results = await app.executeAction(action, txAttrLocal, null, 'LogUpdateEnableStatus', expectThrow);
+    const results = await app.executeAction(action, txAttrLocal, null, 'LogUpdateEnabledStatus', expectThrow);
 
     if (!expectThrow) {
       assert.exists(results.LogBalancePerShard, 'missing LogBalancePerShard event - balances should be updated');
 
-      assert.exists(results.LogUpdateEnableStatus, 'missing LogUpdateEnableStatus event');
-      const [logUpdateEnableStatus] = results.LogUpdateEnableStatus;
+      assert.exists(results.LogUpdateEnabledStatus, 'missing LogUpdateEnabledStatus event');
+      const [logUpdateEnabledStatus] = results.LogUpdateEnabledStatus;
 
-      assert(areAddressesEqual(logUpdateEnableStatus.executor, txAttrLocal.from), 'invalid executor');
-      assert(areAddressesEqual(logUpdateEnableStatus.verifier, verifier), 'invalid verifier');
-      assert.strictEqual(logUpdateEnableStatus.enable, enable, 'invalid enable status');
+      assert(areAddressesEqual(logUpdateEnabledStatus.executor, txAttrLocal.from), 'invalid executor');
+      assert(areAddressesEqual(logUpdateEnabledStatus.verifier, verifier), 'invalid verifier');
+      assert.strictEqual(logUpdateEnabledStatus.enabled, enabled, 'invalid enabled status');
 
       const savedVerifier = await app.verifiers(verifier);
       assert(areAddressesEqual(savedVerifier.id, verifier), 'should be saved onchain');
-      assert.strictEqual(savedVerifier.enable, enable, 'invalid enable status');
+      assert.strictEqual(savedVerifier.enabled, enabled, 'invalid enabled status');
+
+      if (!enabled) {
+        assert(!savedVerifier.active, 'invalid active status');
+      }
     }
 
     return results;
@@ -135,6 +139,7 @@ function MinistroContract() {
 
     const { shard } = await app.verifiers(verifier);
     let prevShardBalance;
+
     if (!expectThrow) {
       prevShardBalance = await app.balancesPerShard(shard.toString());
     }
@@ -156,6 +161,7 @@ function MinistroContract() {
 
     const { shard } = await app.verifiers(verifier);
     let prevShardBalance;
+
     if (!expectThrow) {
       prevShardBalance = await app.balancesPerShard(shard.toString());
     }

@@ -28,7 +28,7 @@ function formatVerifier(verifier) {
     active: verifier[3],
     balance: verifier[4],
     shard: verifier[5],
-    enable: verifier[6],
+    enabled: verifier[6],
   };
 }
 
