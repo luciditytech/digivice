@@ -11,7 +11,7 @@ contract VerifierRegistryStorage is StorageBase {
     string location;
     bool active;
     uint256 shard;
-    bool enable;
+    bool enabled;
   }
 
   mapping(address => Verifier) public verifiers;
@@ -44,11 +44,11 @@ contract VerifierRegistryStorage is StorageBase {
     string calldata _location,
     bool _active,
     uint256 _shard,
-    bool _enable
+    bool _enabled
   )
   external
   onlyFromStorageOwner {
-    verifiers[_id] = Verifier(_id, _name, _location, _active, _shard, _enable);
+    verifiers[_id] = Verifier(_id, _name, _location, _active, _shard, _enabled);
   }
 
   function setVerifierName(address _verifier, string calldata _name)
@@ -69,10 +69,10 @@ contract VerifierRegistryStorage is StorageBase {
     verifiers[_verifier].active = _active;
   }
 
-  function setVerifierEnable(address _verifier, bool _enable)
+  function setVerifierEnabled(address _verifier, bool _enabled)
   external
   onlyFromStorageOwner {
-    verifiers[_verifier].enable = _enable;
+    verifiers[_verifier].enabled = _enabled;
   }
 
   function setVerifierShard(address _verifier, uint256 _shard)
@@ -111,12 +111,12 @@ contract VerifierRegistryStorage is StorageBase {
     return verifiers[_verifier].active;
   }
 
-  function getVerifierEnable(address _verifier) external view returns (bool) {
-    return verifiers[_verifier].enable;
+  function getVerifierEnabled(address _verifier) external view returns (bool) {
+    return verifiers[_verifier].enabled;
   }
 
-  function getVerifierEnableActive(address _verifier) external view returns (bool, bool) {
-    return (verifiers[_verifier].enable, verifiers[_verifier].active);
+  function getVerifierEnabledActive(address _verifier) external view returns (bool, bool) {
+    return (verifiers[_verifier].enabled, verifiers[_verifier].active);
   }
 
   function getVerifierShard(address _verifier) external view returns (uint256) {

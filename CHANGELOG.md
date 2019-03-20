@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 ### Added
-- option to enable and disable verifier (`active` flag): 
+- option to enable and disable verifier (`enabled` flag): 
+- option to activate and deactivate verifier (`active` flag): 
   this will affect only voting process, disabled verifier can still withdraw etc.
 - integration with `ContractRegistry` interface. Contract is now updatable.
 
