@@ -159,7 +159,7 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
 
     require(verifier.id != address(0x0), "verifier do not exists");
     require(verifier.active != _active, "no changes to active flag");
-    require(verifier.enabled, "verifier must be enabledd to become active");
+    require(verifier.enabled, "verifier must be enabled to become active");
 
     vrStorage.setVerifierActive(msg.sender, _active);
 
@@ -168,23 +168,23 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     emit LogUpdateActiveStatus(msg.sender, _active);
   }
 
-  function updateEnabledStatus(address _verifier, bool _enabledd) public onlyOwner {
+  function updateEnabledStatus(address _verifier, bool _enabled) public onlyOwner {
     VerifierRegistryStorage vrStorage = _storage();
     VerifierRegistryStorage.Verifier memory verifier;
     (verifier.id, , ,verifier.active, ,verifier.enabled) = vrStorage.verifiers(_verifier);
 
     require(verifier.id != address(0x0), "verifier do not exists");
-    require(verifier.enabled != _enabledd, "no changes to enabled flag");
+    require(verifier.enabled != _enabled, "no changes to enabled flag");
 
-    vrStorage.setVerifierEnabled(_verifier, _enabledd);
+    vrStorage.setVerifierEnabled(_verifier, _enabled);
 
-    if (!_enabledd) {
+    if (!_enabled) {
       vrStorage.setVerifierActive(_verifier, false);
     }
 
-    _updateBalancePerShard(_verifier, _enabledd && verifier.active ? _getStakingBalance(_verifier) : 0);
+    _updateBalancePerShard(_verifier, _enabled && verifier.active ? _getStakingBalance(_verifier) : 0);
 
-    emit LogUpdateEnabledStatus(msg.sender, _verifier, _enabledd);
+    emit LogUpdateEnabledStatus(msg.sender, _verifier, _enabled);
   }
 
   function hashName(string memory _base) internal pure returns (bytes32) {
