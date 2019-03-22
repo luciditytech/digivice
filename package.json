@@ -13,7 +13,10 @@
     "lint:solium": "solium --dir .",
     "lint:js": "./node_modules/.bin/eslint ./test/**/*.js --fix",
     "lint:js-migrations": "./node_modules/.bin/eslint ./migrations/**/*.js --fix",
-    "lint": "npm run lint:js && npm run lint:js-migrations && npm run lint:solium"
+    "lint": "npm run lint:js && npm run lint:js-migrations && npm run lint:solium",
+    "src:storage": "./node_modules/.bin/truffle-flattener ./contracts/VerifierRegistryStorage.sol > all_storage.sol",
+    "src:contract": "./node_modules/.bin/truffle-flattener ./contracts/VerifierRegistry.sol > all.sol",
+    "src": "npm run src:storage && npm run src:contract"
   },
   "repository": {
     "type": "git",
