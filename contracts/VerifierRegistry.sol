@@ -156,33 +156,37 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     VerifierRegistryStorage vrStorage = _storage();
     VerifierRegistryStorage.Verifier memory verifier;
     (verifier.id, , , verifier.active, ,verifier.enabled) = vrStorage.verifiers(msg.sender);
+    uint256 balanceBeforeUpdate = _getStakingBalance(verifier.id);
 
     require(verifier.id != address(0x0), "verifier do not exists");
     require(verifier.active != _active, "no changes to active flag");
     require(verifier.enabled, "verifier must be enabled to become active");
 
-    vrStorage.setVerifierActive(msg.sender, _active);
+    vrStorage.setVerifierActive(verifier.id, _active);
+    uint256 balanceAfterUpdate = _getStakingBalance(verifier.id);
 
-    _updateBalancePerShard(msg.sender, _active && verifier.enabled ? _getStakingBalance(msg.sender) : 0);
+    _updateBalancePerShard(verifier.id, balanceBeforeUpdate, balanceAfterUpdate);
 
-    emit LogUpdateActiveStatus(msg.sender, _active);
+    emit LogUpdateActiveStatus(verifier.id, _active);
   }
 
   function updateEnabledStatus(address _verifier, bool _enabled) public onlyOwner {
     VerifierRegistryStorage vrStorage = _storage();
     VerifierRegistryStorage.Verifier memory verifier;
     (verifier.id, , ,verifier.active, ,verifier.enabled) = vrStorage.verifiers(_verifier);
+    uint256 balanceBeforeUpdate = _getStakingBalance(verifier.id);
 
     require(verifier.id != address(0x0), "verifier do not exists");
     require(verifier.enabled != _enabled, "no changes to enabled flag");
 
     vrStorage.setVerifierEnabled(_verifier, _enabled);
+    uint256 balanceAfterUpdate = _getStakingBalance(verifier.id);
 
     if (!_enabled) {
       vrStorage.setVerifierActive(_verifier, false);
     }
 
-    _updateBalancePerShard(_verifier, _enabled && verifier.active ? _getStakingBalance(_verifier) : 0);
+    _updateBalancePerShard(_verifier, balanceBeforeUpdate, balanceAfterUpdate);
 
     emit LogUpdateEnabledStatus(msg.sender, _verifier, _enabled);
   }
@@ -245,13 +249,12 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
     return id != address(0x0);
   }
 
-  function _updateBalancePerShard(address _verifier, uint256 _newBalance)
+  function _updateBalancePerShard(address _verifier, uint256 _oldBalance, uint256 _newBalance)
   private {
     VerifierRegistryStorage vrStorage = _storage();
 
     uint256 shard = vrStorage.getVerifierShard(_verifier);
-    uint256 verifierOldBalance = _getStakingBalance(_verifier);
-    uint256 newShardBalance = vrStorage.balancesPerShard(shard).sub(verifierOldBalance).add(_newBalance);
+    uint256 newShardBalance = vrStorage.balancesPerShard(shard).sub(_oldBalance).add(_newBalance);
 
     vrStorage.setBalancePerShard(shard, newShardBalance);
 
@@ -266,8 +269,12 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
 
     address id;
     uint256 shard;
-    (id, , , , shard, ) = _storage().verifiers(_verifier);
+    bool active;
+    bool enabled;
+    (id, , , active, shard, enabled) = _storage().verifiers(_verifier);
     require(id != address(0x0), "verifier not exists");
+
+    if (!active || !enabled) return true;
 
     vrStorage.setBalancePerShard(shard, vrStorage.balancesPerShard(shard).add(_amount));
     return true;
@@ -281,8 +288,12 @@ contract VerifierRegistry is IVerifierRegistry, Ownable, RegistrableWithSingleSt
 
     address id;
     uint256 shard;
-    (id, , , , shard, ) = _storage().verifiers(_verifier);
+    bool active;
+    bool enabled;
+    (id, , , active, shard, enabled) = _storage().verifiers(_verifier);
     require(id != address(0x0), "verifier not exists");
+
+    if (!active || !enabled) return true;
 
     vrStorage.setBalancePerShard(shard, vrStorage.balancesPerShard(shard).sub(_amount));
     return true;
