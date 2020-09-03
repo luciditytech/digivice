@@ -60,7 +60,7 @@
     "pify": "4.0.1",
     "solidity-coverage": "0.5.11",
     "solium": "1.2.3",
-    "web3-eth": "1.0.0-beta.46",
-    "web3-utils": "1.0.0-beta.46"
+    "web3-eth": "1.2.11",
+    "web3-utils": "1.2.11"
   }
 }
