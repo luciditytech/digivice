@@ -56,7 +56,7 @@
     "eslint-plugin-import": "2.16.0",
     "eth-gas-reporter": "0.1.12",
     "lk-test-helpers": "0.1.7",
-    "lodash": "4.17.11",
+    "lodash": "4.17.21",
     "pify": "4.0.1",
     "solidity-coverage": "0.5.11",
     "solium": "1.2.3",
